@@ -6,6 +6,7 @@ const Permissions = require('../../core/utils/permissions');
 const router = express.Router();
 
 router.use(authMiddleware);
+
 router.get('/',requirePermission(Permissions.MEMBER_VIEW),listAllTenantUsers);
 
 router.patch('/:id',requirePermission(Permissions.MEMBER_UPDATE),updateUserInfoById);

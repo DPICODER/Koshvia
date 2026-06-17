@@ -81,7 +81,7 @@ exports.loginUser = async ({ email, password }) => {
 
 
 // Register Route for a new tenant Registration
-exports.registerUser = async ({ email, password, company, plan, name, phone, avatar }) => {
+exports.registerUser = async ({ email, password, company, plan, name, phone }) => {
     return sequelize.transaction(async (t) => {
 
         const emailExists = await exports.findAuthByEmail(email);
@@ -93,7 +93,7 @@ exports.registerUser = async ({ email, password, company, plan, name, phone, ava
         const password_hash = await exports.hashPassword(password);
         const tenant = await createTenant(company, plan, { transaction: t });
         const authAccount = await exports.createAuthAccount(email, password_hash, tenant.id,"TENANT_ADMIN", { transaction: t })
-        const user = await createUser(name, phone, avatar, tenant.id, authAccount.id, { transaction: t });
+        const user = await createUser(name, phone, tenant.id, authAccount.id, { transaction: t });
 
         return {
             success: true,

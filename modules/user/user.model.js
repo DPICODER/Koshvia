@@ -16,10 +16,6 @@ const user = sequelize.define('user',{
         type: DataTypes.STRING,
         allowNull: false,
     },
-    avatar:{
-        type:DataTypes.TEXT,
-        allowNull:true,
-    },
     tenant_id:{
         type:DataTypes.UUID,
         allowNull:false,

@@ -96,7 +96,7 @@ exports.InvitationClosure = (token, typeOfUpdate, options = {}) => {
 
 exports.InvitationAccept = async (data) => {
     return sequelize.transaction(async (t) => {
-        const { token, name, phone, password, avatar } = data;
+        const { token, name, phone, password } = data;
         //get Invitation data and validate it
         const inv_data = await exports.getInviteByToken(token);
         if (!inv_data) throw new NotFoundError("Invitation not found");
@@ -109,7 +109,7 @@ exports.InvitationAccept = async (data) => {
         const auth_acc = await createAuthAccount(inv_data.email, password_hash, inv_data.tenant_id,inv_data.role, { transaction: t });
 
         //create user account 
-        const user_acc = await createUser(name, phone, avatar, inv_data.tenant_id, auth_acc.id, { transaction: t });
+        const user_acc = await createUser(name, phone, inv_data.tenant_id, auth_acc.id, { transaction: t });
 
         await exports.InvitationClosure(token, "accept", {transaction: t });
         return {

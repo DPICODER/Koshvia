@@ -7,9 +7,9 @@ const auth = require('./modules/auth/auth.routes');
 const invite = require('./modules/invite/invite.routes');
 const tenant = require('./modules/tenants/tenant.routes');
 const user = require('./modules/user/user.routes');
+const inventory = require('./modules/inventory/inventory.routes');
 const errorMiddleware = require('./core/middleware/error.middleware');
 const NotFoundError = require('./core/utils/errors/NotFoundError');
-
 app.use((req, res, next) => {
   const time = new Date().toLocaleTimeString();
   console.log(`[${time}] : ${req.method} -> ${req.path}`);
@@ -22,6 +22,7 @@ app.use("/api/v1/auth",auth);
 app.use("/api/v1/invite",invite);
 app.use("/api/v1/tenant",tenant);
 app.use('/api/v1/user',user)
+app.use('/api/v1/inventory',inventory);
 
 app.get('/', (req, res) => {
     res.send("Server is up")
