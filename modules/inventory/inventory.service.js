@@ -1,3 +1,4 @@
+const MOVEMENT_TYPES = require('../../core/utils/movementTypes');
 const inventoryItems = require('./inventory.item.model');
 const inventoryMovemnet = require('./inventory.movement.model');
 /**
@@ -52,35 +53,40 @@ exports.getInventoryItemById = async (item_id, tenant_id) => {
 
 exports.updateInventoryItem = async (tenant_id, item_id, update_info, options = {}) => {
     try {
-        const item = await exports.getInventoryItemById(item_id,tenant_id);
-            console.log("item Info:", item);
-
+        const item = await exports.getInventoryItemById(item_id, tenant_id);
         if (!item) {
             throw new Error("Inventory item not found");
         }
-
-        return await item.update({
-            item_name: update_info.name || item.name,
-            sku: update_info.sku !== undefined ? update_info.sku : item.sku || null,
-            quantity: update_info.quantity !== undefined ? update_info.quantity : item.quantity,
-            cost_price: update_info.cost_price || item.cost_price,
-            selling_price: update_info.selling_price || item.selling_price,
-            minimum_stock: update_info.minimum_stock !== undefined ? update_info.minimum_stock : item.minimum_stock,
-            image_url: update_info.image_url || item.image_url
+        const old_item = item.toJSON();
+        const update_details = await item.update({
+            item_name: update_info.name ?? item.name,
+            sku: update_info.sku ?? item.sku,
+            quantity: update_info.quantity ?? item.quantity,
+            cost_price: update_info.cost_price ?? item.cost_price,
+            selling_price: update_info.selling_price ?? item.selling_price,
+            minimum_stock: update_info.minimum_stock ?? item.minimum_stock,
+            image_url: update_info.image_url ?? item.image_url
         }, options)
+
+        return { old_item, update_details };
     } catch (error) {
         throw new Error("Error Updating Inventory item")
     }
 }
 
-exports.updateInventoryMovement = async (record_info, update_info, options = {}) => {
+
+
+exports.updateInventoryMovement = async (old_entry, new_entry, update_info, options = {}) => {
     try {
         await inventoryMovemnet.create({
-            tenant_id: record_info.tenant_id,
-            item_id: record_info.id,
-            movement_type: "ADJUSTMENT",
-            quantity: 0,
-            remarks: `Admin updated: ${Object.keys(update_info).join(', ')}`
+            tenant_id: new_entry.tenant_id,
+            item_id: new_entry.id,
+            movement_type: MOVEMENT_TYPES.ADJUSTMENT,
+            quantity: Math.abs(new_entry.quantity - old_entry.quantity),
+            remarks: `Admin updated: ${Object.keys(update_info).join(', ')}`,
+            old_quantity: old_entry.quantity,
+            updated_quantity: new_entry.quantity,
+            difference_quantity: new_entry.quantity - old_entry.quantity,
         }, options)
     } catch (error) {
         console.log("ERROR:", error);
@@ -89,3 +95,13 @@ exports.updateInventoryMovement = async (record_info, update_info, options = {})
     }
 }
 
+exports.InventortyMovement = async(user_info)=>{
+    return await inventoryMovemnet.findAll({where:{tenant_id:user_info.tenant_id},order:[['createdAt','DESC']]})
+}
+
+exports.InventortyMovementById = async(user_info,item_id)=>{
+    return await inventoryMovemnet.findOne({where:{
+        id:item_id,
+        tenant_id:user_info.tenant_id,
+    }})
+}

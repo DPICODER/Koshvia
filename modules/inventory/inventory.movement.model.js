@@ -46,7 +46,7 @@ const InventoryMovement = sequelize.define(
     remarks: {
       type: Sequelize.TEXT,
     },
-        createdAt: {
+    createdAt: {
       type: Sequelize.DATE,
       allowNull: false,
       defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
@@ -57,9 +57,24 @@ const InventoryMovement = sequelize.define(
       allowNull: false,
       defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
     },
+    old_quantity: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    updated_quantity: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    difference_quantity: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    }
   },
   {
-    timestamps:true,
+    timestamps: true,
     tableName: "inventory_movements",
   }
 );

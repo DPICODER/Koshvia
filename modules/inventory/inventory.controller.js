@@ -50,9 +50,7 @@ exports.updateEntry = async (req, res, next) => {
 
 
         const update_item = await inventoryService.updateInventoryItem(tenant_id, item_id, update_info, { transaction: t });
-        console.log("Update Item info ",update_item);
-        
-        await inventoryService.updateInventoryMovement(update_item,update_info,{ transaction: t });
+        await inventoryService.updateInventoryMovement(update_item.old_item,update_item.update_details,update_info,{ transaction: t });
 
         await t.commit();
         return res.status(201).json({
@@ -80,6 +78,49 @@ exports.getInventoryItem = async(req,res,next)=>{
             message:"item found",
             data:item
         })
+    } catch (error) {
+        next(error)
+    }
+}
+
+
+exports.getInvnetoryMovement = async(req,res,next)=>{
+    try {
+        const user_info = req.user;
+        
+        const result = await inventoryService.InventortyMovement(user_info);
+        if(!result){
+            return res.status(404).json({
+                success:false,
+                message:"No movements founds"
+            })
+        }
+        return res.status(200).json({
+            success:true,
+            message:"fetched movement",
+            data:result
+        });
+    } catch (error) {
+        next(error)
+    }
+}
+
+exports.getInvnetoryMovementById = async(req,res,next)=>{
+    try {
+        const user_info = req.user;
+        const item_id = req.params.id;
+        const result = await inventoryService.InventortyMovementById(user_info,item_id);
+                if(!result){
+            return res.status(404).json({
+                success:false,
+                message:`No movement found with id : ${item_id}`
+            })
+        }
+        return res.status(200).json({
+            success:true,
+            message:"fetched movement",
+            data:result
+        });
     } catch (error) {
         next(error)
     }

@@ -1,0 +1,9 @@
+const MOVEMENT_TYPES ={
+    PURCHASE:"PURCHASE",
+    SALE:"SALE",
+    RETURN:"RETURN",
+    ADJUSTMENT:"ADJUSTMENT",
+    DAMAGE:"DAMAGE"
+};
+
+module.exports = MOVEMENT_TYPES;
