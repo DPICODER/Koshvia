@@ -1,154 +1,278 @@
 # StockLane
 
-StockLane is a production-ready, enterprise-grade B2B Multi-Tenant Inventory Management backend engine. Built using **Node.js**, **Express**, and **Sequelize ORM**, the system is engineered around a modular, domain-driven architecture featuring strict data isolation, dynamic tenant routing, and an advanced Role-Based Access Control (RBAC) security model.
+> **A production-inspired multi-tenant inventory management backend built with Node.js, Express, Sequelize, and PostgreSQL.**
+
+StockLane is a backend-focused project that demonstrates how a scalable SaaS inventory platform can be structured using modular architecture, service-layer business logic, tenant isolation, audit logging, request validation, and transaction-safe inventory operations.
 
 ---
 
-## 🏗️ Architectural Overview & Design Patterns
+# Highlights
 
-Unlike traditional flat MVC architectures that become unmaintainable as engineering teams scale, StockLane implements a **Modular Domain Architecture**. Each business capability is entirely self-contained within its own domain module, making the codebase highly scannable, decoupled, and microservice-ready.
-
-
-```
-
-core/                 # Shared infrastructure & global utilities
-│   ├── db/           # Database configurations and Sequelize migrations
-│   ├── middleware/   # Centralized express middleware (RBAC, validation, errors)
-│   └── utils/        # Global helper utilities and custom error primitives
-modules/              # Domain-driven feature modules
-├── tenants/      # Organization onboarding & workspace routing
-├── user/         # Identity profiles and lifecycle management
-├── auth/         # Authentication mechanics & token issuing
-├── invite/       # Multi-tenant workspace invitation pipelines
-└── inventory/    # Core inventory tracking and ledger management
-
-```
-
-### Key Engineering Features
-
-*   **Multi-Tenant Data Isolation:** Dynamically provisions organization workspaces utilizing automated slug generation (`generate-Tenant-Slug.js`). Core database architecture handles clean tenant partitioning to guarantee absolute cross-organization data boundaries.
-*   **Decoupled Domain Layering:** Every module explicitly divides its responsibilities across three rigid architectural layers:
-    *   `Routes`: Entry boundaries validating incoming payloads.
-    *   `Controller`: Orchestration layer parsing requests and managing HTTP abstractions.
-    *   `Service`: Pure business logic layer executing database operations, completely decoupled from Express request/response lifecycles.
-*   **Granular Role-Based Access Control (RBAC):** Built a declarative matrix infrastructure mapping roles (`Owner`, `Admin`, `Manager`, `Staff`) to deterministic permission arrays, guarded by an active execution interceptor (`permissions.middleware.js`).
+- Multi-tenant architecture
+- JWT authentication
+- Role-based authorization (RBAC)
+- Modular feature-based architecture
+- Sequelize ORM with PostgreSQL
+- Inventory CRUD
+- Transaction-safe stock adjustments
+- Automatic inventory movement (audit trail)
+- Joi request validation
+- Centralized error handling
+- Pagination support for inventory history
 
 ---
 
-## 🛡️ Core Infrastructure Design
+# Project Goals
 
-### 1. Robust Global Exception Handling
-The engine implements a predictable, structured error pipeline bypassing standard native try-catch overheads via an explicit `asyncHandler` wrapper. Operational vs. Programmatic errors are segregated utilizing custom error primitives inherited from a base interface:
+StockLane is designed to explore backend engineering practices rather than simply implementing CRUD operations.
 
+Primary goals include:
 
-```
-
-```
-      ┌────────────────────────┐
-      │       HTTP Request     │
-      └───────────┬────────────┘
-                  ▼
-      ┌────────────────────────┐
-      │  Operational Exception │
-      └───────────┬────────────┘
-                  ▼
-      ┌────────────────────────┐
-      │   AppError Extension   │
-      │ (Auth / ValidationError)│
-      └───────────┬────────────┘
-                  ▼
-
-```
-
-┌─────────────────────────────────────────────┐
-│          Global Error Middleware            │
-│  • Normalizes payload structure             │
-│  • Controls production stacktrace leakages  │
-│  • Dispatches structured JSON interface     │
-└─────────────────────────────────────────────┘
-
-```
-
-### 2. Request Validation Pipeline
-To ensure strict boundary security, incoming request bodies, query strings, and route parameters are schema-validated at the network edge via a structural interceptor (`validate.middleware.js`). Malformed payloads are dropped instantly before triggering resource-intensive database layers.
+- Building maintainable service-layer architecture
+- Designing reusable business logic
+- Enforcing tenant data isolation
+- Implementing audit trails
+- Using database transactions correctly
+- Applying validation before business logic
+- Creating production-inspired REST APIs
 
 ---
 
-## 📊 Domain Matrix
+# Architecture
 
-The system exposes a clean mapping of domain responsibilities designed for scale:
+```
+Client
+   │
+Express Router
+   │
+Controllers
+   │
+Services
+   │
+Sequelize ORM
+   │
+PostgreSQL
+```
 
-| Module | Core Responsibility | Database Triggers / Side-Effects |
-| :--- | :--- | :--- |
-| **Tenants** | Provisions isolated organizational workspaces. | Generates immutable cryptographic URL slugs. |
-| **Auth** | Handles authentication, hashing, and state validation. | Dispatches secure, signed JWT tokens. |
-| **Invite** | Manages multi-user workspace access delegation. | Generates time-bounded, single-use security tokens. |
-| **User** | Aggregates individual structural identities across workspaces. | Enforces relational constraints against Auth entities. |
-| **Inventory**| Core tracking engine for high-throughput logistics. | Restricts records strictly to the active tenant session context. |
+Controllers are responsible for HTTP orchestration only.
+
+Services contain business logic.
+
+Models represent persistence.
+
+Middleware handles authentication, authorization, validation, and error handling.
 
 ---
 
-## 🛠️ Tech Stack & Dependencies
+# Folder Structure
 
-*   **Runtime Environment:** Node.js (LTS)
-*   **Application Framework:** Express.js
-*   **Object-Relational Mapping (ORM):** Sequelize
-*   **Database Engines:** Relational Compatibility (PostgreSQL / MySQL / MariaDB)
-*   **Authentication Engine:** JSON Web Tokens (JWT) & bcrypt
+```text
+core/
+ ├── db/
+ ├── middleware/
+ ├── utils/
+
+modules/
+ ├── auth/
+ ├── tenants/
+ ├── users/
+ ├── invite/
+ └── inventory/
+```
+
+Each module follows:
+
+```
+Routes
+ ↓
+Controller
+ ↓
+Service
+ ↓
+Model
+```
 
 ---
 
-## 🚀 Local Deployment Setup
+# Inventory Module
 
-### Prerequisites
-Ensure your local environment runs Node.js v18+ and has a relational database instance online.
+Implemented features:
 
-### 1. Clone & Install Environment
+- Create inventory item
+- Get inventory
+- Get inventory item
+- Update inventory item
+- Add stock
+- Remove stock
+- Inventory movement history
+- Movement history by item
+- Pagination support
+
+---
+
+# Inventory Audit Trail
+
+Every stock-changing operation creates a movement record.
+
+Supported movement types:
+
+- PURCHASE
+- SALE
+- ADJUSTMENT
+
+Movement records include:
+
+- movement_type
+- quantity
+- old_quantity
+- updated_quantity
+- difference_quantity
+- remarks
+- timestamps
+
+Example:
+
+| Action | Old | Change | New |
+|------|----:|-------:|----:|
+| Initial Stock | 0 | +100 |100|
+| Purchase |100|+20|120|
+| Sale |120|-5|115|
+| Adjustment |115|-10|105|
+
+---
+
+# Multi-Tenant Design
+
+Every protected query is scoped by `tenant_id`, ensuring organizations cannot access one another's data.
+
+---
+
+# Validation
+
+Incoming requests are validated using Joi before reaching business logic.
+
+Separate validation schemas are used for create/update operations where appropriate.
+
+---
+
+# Transactions
+
+Operations that affect multiple tables execute inside Sequelize transactions to guarantee consistency.
+
+Example:
+
+1. Update inventory
+2. Record movement
+3. Commit
+
+If any step fails, the transaction is rolled back.
+
+---
+
+# Tech Stack
+
+- Node.js
+- Express.js
+- Sequelize ORM
+- PostgreSQL
+- JWT
+- bcrypt
+- Joi
+
+---
+
+# Current Inventory API
+
+| Method | Endpoint |
+|---|---|
+| POST | /inventory/items |
+| GET | /inventory/items |
+| GET | /inventory/items/:id |
+| PATCH | /inventory/items/:id |
+| PATCH | /inventory/items/:id/add-stock |
+| PATCH | /inventory/items/:id/remove-stock |
+| GET | /inventory/history |
+| GET | /inventory/history/:id |
+
+---
+
+# Running Locally
+
+## Install
+
 ```bash
-git clone <your-repository-url>
-cd StockLane
 npm install
-
 ```
 
-### 2. Environment Configuration
+## Configure
 
-Create a `.env` file in the project root directory and map the following credentials:
+Create a `.env`
 
 ```env
-PORT=5000
-NODE_ENV=development
+PORT=3000
+DB_HOST=
+DB_PORT=
+DB_NAME=
+DB_USER=
+DB_PASS=
+DB_DIALECT=postgres
 
-DB_USER=your_db_user
-DB_PASS=your_db_password
-DB_NAME=stocklane_dev
-DB_HOST=127.0.0.1
-DB_DIALECT=postgres # mysql / mariadb
-
-JWT_SECRET=your_super_secure_jwt_signing_key
+JWT_SECRET=
 JWT_EXPIRES_IN=1d
-
 ```
 
-### 3. Initialize Database Migrations
-
-Execute the programmatic migration pipeline to seed your local database architecture schema:
+## Migrate
 
 ```bash
-npx sequelizeprocli db:migrate
-# OR via your package script runner if configured
 npm run db:migrate
-
 ```
 
-### 4. Boot Execution Engine
+## Start
 
 ```bash
-# Start production cluster execution
-npm start
-
-# Start local execution stream with hot-reloading
 npm run dev
-
 ```
 
+---
+
+# Roadmap
+
+## Inventory
+
+- Duplicate SKU validation
+- Soft delete
+- Search
+- Filters
+- Sorting
+- Dashboard statistics
+
+## Authentication
+
+- Refresh tokens
+- Logout
+- Password reset
+- Email verification
+
+## Core
+
+- AppError hierarchy
+- Rate limiting
+- Swagger/OpenAPI
+- Unit tests
+- Structured logging
+
+---
+
+# Engineering Decisions
+
+This project intentionally separates HTTP concerns from business logic by placing all business rules inside services.
+
+Inventory changes are recorded through an audit trail instead of directly modifying stock without history.
+
+Transactions ensure inventory updates and movement logs succeed or fail together.
+
+---
+
+# Status
+
+StockLane is actively under development and is being expanded feature by feature while maintaining clean architecture and production-inspired backend practices.
