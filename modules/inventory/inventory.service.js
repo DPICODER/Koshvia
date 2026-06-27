@@ -1,4 +1,6 @@
+const AppError = require('../../core/utils/errors/AppError');
 const MOVEMENT_TYPES = require('../../core/utils/movementTypes');
+const STOCK_OPERATION = require('../../core/utils/stockOperations');
 const inventoryItems = require('./inventory.item.model');
 const inventoryMovemnet = require('./inventory.movement.model');
 /**
@@ -10,11 +12,19 @@ exports.getUserInventory = async (user_id) => {
     return await inventoryItems.findAll({ where: { tenant_id: user_id } });
 }
 
+/**
+ * 
+ * @param {UUID} tenant_id 
+ * @param {Object} item_info 
+ * @param {Object} options 
+ * @returns {Promise.Object}
+ */
 exports.createInventoryItem = async (tenant_id, item_info, options = {}) => {
     try {
-        const create = await inventoryItems.create({
+        
+        const item = await inventoryItems.create({
             tenant_id: tenant_id,
-            item_name: item_info.name,
+            item_name: item_info.item_name,
             sku: item_info.sku || null,
             quantity: item_info.quantity,
             cost_price: item_info.cost_price,
@@ -22,25 +32,26 @@ exports.createInventoryItem = async (tenant_id, item_info, options = {}) => {
             minimum_stock: item_info.minimum_stock,
             image_url: item_info.image_url
         }, options)
-        return create;
+
+        const stockChange = {
+            quantity:item_info.quantity,
+            old_quantity:0,
+            new_quantity:item_info.quantity,
+            quantity_changed:item_info.quantity
+        }
+
+        return {
+            item,
+            stockChange,
+            operation:MOVEMENT_TYPES.PURCHASE
+        };
     } catch (error) {
-        throw new Error("Error creating inventory item");
+        console.error(error);
+        throw error
     }
 }
 
-exports.createItemMovementInfo = async (item_record, options = {}) => {
-    try {
-        const create_movement = await inventoryMovemnet.create({
-            tenant_id: item_record.tenant_id,
-            item_id: item_record.id,
-            movement_type: "PURCHASE",
-            quantity: item_record.quantity,
-            remarks: "Purchase recorded"
-        }, options)
-    } catch (error) {
-        throw new Error("Error creating inventory movement");
-    }
-}
+
 
 exports.getInventoryItemById = async (item_id, tenant_id) => {
     return await inventoryItems.findOne({
@@ -59,7 +70,7 @@ exports.updateInventoryItem = async (tenant_id, item_id, update_info, options = 
         }
         const old_item = item.toJSON();
         const update_details = await item.update({
-            item_name: update_info.name ?? item.name,
+            item_name: update_info.item_name ?? item.item_name,
             sku: update_info.sku ?? item.sku,
             quantity: update_info.quantity ?? item.quantity,
             cost_price: update_info.cost_price ?? item.cost_price,
@@ -70,11 +81,10 @@ exports.updateInventoryItem = async (tenant_id, item_id, update_info, options = 
 
         return { old_item, update_details };
     } catch (error) {
-        throw new Error("Error Updating Inventory item")
+        console.error(error);
+        throw error
     }
 }
-
-
 
 exports.updateInventoryMovement = async (old_entry, new_entry, update_info, options = {}) => {
     try {
@@ -89,19 +99,75 @@ exports.updateInventoryMovement = async (old_entry, new_entry, update_info, opti
             difference_quantity: new_entry.quantity - old_entry.quantity,
         }, options)
     } catch (error) {
-        console.log("ERROR:", error);
-
-        throw new Error("Error creating update movement log");
+        console.error(error);
+        throw error
     }
 }
 
-exports.InventortyMovement = async(user_info)=>{
-    return await inventoryMovemnet.findAll({where:{tenant_id:user_info.tenant_id},order:[['createdAt','DESC']]})
+exports.getInventoryHistory = async (tenant_id, limit, offset) => {
+
+    return await inventoryMovemnet.findAll({
+        where: {
+            tenant_id: tenant_id
+        }, limit, offset,
+        order: [['createdAt', 'DESC']]
+    })
 }
 
-exports.InventortyMovementById = async(user_info,item_id)=>{
-    return await inventoryMovemnet.findOne({where:{
-        id:item_id,
-        tenant_id:user_info.tenant_id,
-    }})
+exports.getInventoryHistoryById = async (tenant_id, item_id) => {
+    return await inventoryMovemnet.findAll({
+        where: {
+            item_id: item_id,
+            tenant_id: tenant_id,
+        }, order: [['createdAt', 'DESC']]
+    })
+}
+
+exports.adjustStock = async (tenant_id, item_id, quantity, operation, options = {}) => {
+    try {
+        const item = await exports.getInventoryItemById(item_id, tenant_id);
+        
+        if (!item) {
+            throw new AppError("Inventory item not found",404)
+        }
+
+        const old_quantity = item.quantity;
+        if(operation === STOCK_OPERATION.DECREMENT && item.quantity < quantity){
+             throw new AppError("Insufficent Stock",400);
+        }
+        await item[operation]("quantity", {
+            by: quantity,
+            ...options
+        })
+        await item.reload({ transaction: options.transaction });
+
+        const stockChange = {
+            old_quantity:old_quantity,
+            new_quantity:item.quantity,
+            quantity_changed:quantity
+        }
+
+        return {
+            item,
+            stockChange,
+            operation:operation === STOCK_OPERATION.INCREMENT ? MOVEMENT_TYPES.PURCHASE : MOVEMENT_TYPES.SALE
+        };
+    }
+    catch (error) {
+        console.error(error);
+        throw error
+    }
+}
+
+exports.recordInventoryMovement = async (tenant_id,item_info,stockChange,operation,options={})=>{
+   return await inventoryMovemnet.create({
+        tenant_id:tenant_id,
+        item_id:item_info.id,
+        movement_type:operation,
+        quantity:stockChange.quantity_changed,
+        old_quantity:stockChange.old_quantity,
+        updated_quantity:stockChange.new_quantity,
+        difference_quantity:stockChange.new_quantity - stockChange.old_quantity,
+        remarks:operation === MOVEMENT_TYPES.PURCHASE ? "Purchase recorded" : "Sale recorded"
+   },options);
 }
