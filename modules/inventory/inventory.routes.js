@@ -18,6 +18,7 @@ router.post('/',validator(validateInventoryCreate),InventoryController.addToInve
 
 router.patch('/:id',InventoryController.updateEntry);
 
+
 router.patch('/items/:id/add-stock',validator(validateAddStock),InventoryController.addStock);
 router.patch('/items/:id/remove-stock',validator(validateReduceStock),InventoryController.reduceStock);
 // router.patch('/items/:id/adjust')

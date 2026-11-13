@@ -23,32 +23,39 @@ exports.getInventory = async (req, res, next) => {
 }
 
 exports.addToInventory = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    if (req.body.selling_price < req.body.cost_price) {
+        return res.status(400).json({
+            success: false,
+            message: "Selling price cannot be less than cost price"
+        })
+    }
+    let t;
     try {
+        t = await sequelize.transaction();
+
         const tenant_id = req.user.tenant_id;
         const item_info = req.body;
-        if (req.body.selling_price < req.body.cost_price) {
-            return res.status(400).json({
-                success: false,
-                message: "Selling price cannot be less than cost price"
-            })
-        }
+
         const result = await inventoryService.createInventoryItem(tenant_id, item_info, { transaction: t });
-        await inventoryService.recordInventoryMovement(tenant_id,result.item,result.stockChange,result.operation,{transaction:t})
+        await inventoryService.recordInventoryMovement(tenant_id, result.item, result.stockChange, result.operation, { transaction: t })
         await t.commit();
         return res.status(201).json({
             success: true,
             message: "added to inventroy",
         })
     } catch (error) {
-        await t.rollback();
+        if(t && !t.finished){
+            await t.rollback();
+        }
         next(error)
     }
 }
 
 exports.updateEntry = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    let t;
     try {
+        t = await sequelize.transaction();
+        
         const tenant_id = req.user.tenant_id;
         const update_info = req.body;
         const item_id = req.params.id;
@@ -63,7 +70,9 @@ exports.updateEntry = async (req, res, next) => {
             message: "Inventory Updated",
         })
     } catch (error) {
-        await t.rollback();
+        if(t && !t.finished){
+            await t.rollback();
+        }
         next(error)
     }
 }
@@ -137,13 +146,15 @@ exports.getInvnetoryMovementById = async (req, res, next) => {
 }
 
 exports.addStock = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    let t;
     try {
+        t = await sequelize.transaction();
+        
         const tenant_id = req.user.tenant_id;
         const quantity = req.body.quantity;
         const item_id = req.params.id;
-        const result = await inventoryService.adjustStock(tenant_id, item_id, quantity,"increment",{transaction:t});
-        await inventoryService.recordInventoryMovement(tenant_id,result.item,result.stockChange,result.operation,{transaction:t});
+        const result = await inventoryService.adjustStock(tenant_id, item_id, quantity, "increment", { transaction: t });
+        await inventoryService.recordInventoryMovement(tenant_id, result.item, result.stockChange, result.operation, { transaction: t });
 
         await t.commit();
         return res.status(200).json({
@@ -152,7 +163,9 @@ exports.addStock = async (req, res, next) => {
             data: result
         });
     } catch (error) {
-        await t.rollback();
+        if(t && t.finished){
+            await t.rollback();
+        }
         next(error)
     }
 }
@@ -162,9 +175,9 @@ exports.reduceStock = async (req, res, next) => {
         const tenant_id = req.user.tenant_id;
         const quantity = req.body.quantity;
         const item_id = req.params.id;
-        const result = await inventoryService.adjustStock(tenant_id, item_id, quantity,"decrement",{transaction:t});
-        
-        await inventoryService.recordInventoryMovement(tenant_id,result.item,result.stockChange,result.operation,{transaction:t});
+        const result = await inventoryService.adjustStock(tenant_id, item_id, quantity, "decrement", { transaction: t });
+
+        await inventoryService.recordInventoryMovement(tenant_id, result.item, result.stockChange, result.operation, { transaction: t });
         await t.commit();
         return res.status(200).json({
             success: true,

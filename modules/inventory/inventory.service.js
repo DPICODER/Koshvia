@@ -66,7 +66,7 @@ exports.updateInventoryItem = async (tenant_id, item_id, update_info, options = 
     try {
         const item = await exports.getInventoryItemById(item_id, tenant_id);
         if (!item) {
-            throw new Error("Inventory item not found");
+            throw new AppError("Inventory item not found",404);
         }
         const old_item = item.toJSON();
         const update_details = await item.update({
