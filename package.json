@@ -1,7 +1,7 @@
 {
-  "name": "stocklane",
+  "name": "koshvia",
   "version": "1.0.0",
-  "description": "Stocklane is a multi-tenant inventory management API built with Node.js, designed to handle product tracking, stock operations, and tenant-level data isolation with secure JWT-based authentication.",
+  "description": "Koshvia is a multi-tenant inventory management API built with Node.js, designed to handle product tracking, stock operations, and tenant-level data isolation with secure JWT-based authentication.",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -13,14 +13,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DPICODER/StockLane.git"
+    "url": "git+https://github.com/DPICODER/Koshvia.git"
   },
   "author": "DPICODER",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/DPICODER/StockLane/issues"
+    "url": "https://github.com/DPICODER/Koshvia/issues"
   },
-  "homepage": "https://github.com/DPICODER/StockLane#readme",
+  "homepage": "https://github.com/DPICODER/Koshvia#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "crypto": "^1.0.1",

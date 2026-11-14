@@ -1,8 +1,8 @@
-# StockLane
+# Koshvia
 
 > **A production-inspired multi-tenant inventory management backend built with Node.js, Express, Sequelize, and PostgreSQL.**
 
-StockLane is a backend-focused project that demonstrates how a scalable SaaS inventory platform can be structured using modular architecture, service-layer business logic, tenant isolation, audit logging, request validation, and transaction-safe inventory operations.
+Koshvia is a backend-focused project that demonstrates how a scalable SaaS inventory platform can be structured using modular architecture, service-layer business logic, tenant isolation, audit logging, request validation, and transaction-safe inventory operations.
 
 ---
 
@@ -24,7 +24,7 @@ StockLane is a backend-focused project that demonstrates how a scalable SaaS inv
 
 # Project Goals
 
-StockLane is designed to explore backend engineering practices rather than simply implementing CRUD operations.
+Koshvia is designed to explore backend engineering practices rather than simply implementing CRUD operations.
 
 Primary goals include:
 
@@ -275,4 +275,4 @@ Transactions ensure inventory updates and movement logs succeed or fail together
 
 # Status
 
-StockLane is actively under development and is being expanded feature by feature while maintaining clean architecture and production-inspired backend practices.
+Koshvia is actively under development and is being expanded feature by feature while maintaining clean architecture and production-inspired backend practices.
