@@ -1,278 +1,326 @@
 # Koshvia
 
-> **A production-inspired multi-tenant inventory management backend built with Node.js, Express, Sequelize, and PostgreSQL.**
+> A backend-focused, multi-tenant inventory management API built with Node.js, Express.js, Sequelize, and PostgreSQL.
 
-Koshvia is a backend-focused project that demonstrates how a scalable SaaS inventory platform can be structured using modular architecture, service-layer business logic, tenant isolation, audit logging, request validation, and transaction-safe inventory operations.
+Koshvia is a backend engineering project focused on building a maintainable inventory management API with tenant-level data isolation, JWT authentication, modular architecture, request validation, inventory movement tracking, and transaction-safe stock operations.
 
----
+## Highlights
 
-# Highlights
-
-- Multi-tenant architecture
-- JWT authentication
-- Role-based authorization (RBAC)
+- Multi-tenant inventory architecture
+- JWT-based authentication
+- Tenant-scoped inventory operations
 - Modular feature-based architecture
+- Service-layer business logic
 - Sequelize ORM with PostgreSQL
-- Inventory CRUD
-- Transaction-safe stock adjustments
-- Automatic inventory movement (audit trail)
+- Inventory creation, retrieval, and updates
+- Stock addition and reduction
+- Inventory movement history
+- Transaction-safe stock operations
+- Row-level locking for concurrent stock updates
 - Joi request validation
-- Centralized error handling
-- Pagination support for inventory history
+- Centralized error-handling middleware
+- Pagination for inventory movement history
 
----
+## Project Goals
 
-# Project Goals
+Koshvia explores practical backend engineering concepts beyond basic CRUD implementation.
 
-Koshvia is designed to explore backend engineering practices rather than simply implementing CRUD operations.
+Primary goals:
 
-Primary goals include:
+- Build maintainable service-layer architecture
+- Separate HTTP concerns from business logic
+- Enforce tenant-level data isolation
+- Maintain inventory movement history
+- Implement reliable database transactions
+- Handle concurrent stock modifications safely
+- Apply request validation before business operations
+- Design versioned REST APIs
 
-- Building maintainable service-layer architecture
-- Designing reusable business logic
-- Enforcing tenant data isolation
-- Implementing audit trails
-- Using database transactions correctly
-- Applying validation before business logic
-- Creating production-inspired REST APIs
+## Architecture
 
----
-
-# Architecture
-
-```
+```text
 Client
-   │
+  |
 Express Router
-   │
+  |
+Middleware
+  |
 Controllers
-   │
+  |
 Services
-   │
+  |
 Sequelize ORM
-   │
+  |
 PostgreSQL
 ```
 
-Controllers are responsible for HTTP orchestration only.
+Responsibilities:
 
-Services contain business logic.
+- **Routes:** Define API endpoints and middleware.
+- **Middleware:** Handle authentication, request validation, and centralized errors.
+- **Controllers:** Handle HTTP requests and responses.
+- **Services:** Implement business rules and database operations.
+- **Models:** Define database entities and persistence structure.
 
-Models represent persistence.
-
-Middleware handles authentication, authorization, validation, and error handling.
-
----
-
-# Folder Structure
+## Project Structure
 
 ```text
 core/
  ├── db/
+ │   ├── migrations/
+ │   └── config.js
  ├── middleware/
- ├── utils/
+ └── utils/
 
 modules/
  ├── auth/
  ├── tenants/
- ├── users/
+ ├── user/
  ├── invite/
  └── inventory/
 ```
 
-Each module follows:
+Feature modules separate their respective routes, controllers, services, and models.
 
-```
-Routes
- ↓
-Controller
- ↓
-Service
- ↓
-Model
-```
+## Inventory Module
 
----
+Implemented functionality:
 
-# Inventory Module
-
-Implemented features:
-
-- Create inventory item
-- Get inventory
-- Get inventory item
-- Update inventory item
+- Create inventory items
+- Retrieve inventory items
+- Retrieve individual inventory items
+- Update inventory item details
 - Add stock
 - Remove stock
-- Inventory movement history
-- Movement history by item
-- Pagination support
+- Retrieve inventory movement history
+- Retrieve movement history for an individual item
+- Paginate general inventory movement history
 
----
+Inventory deletion, search, and filtering are not currently implemented.
 
-# Inventory Audit Trail
+## Inventory Movement Tracking
 
-Every stock-changing operation creates a movement record.
+Stock-changing operations generate inventory movement records.
 
-Supported movement types:
+Currently implemented movement operations:
 
-- PURCHASE
-- SALE
-- ADJUSTMENT
+| Operation | Movement type |
+|---|---|
+| Initial inventory creation | PURCHASE |
+| Stock addition | PURCHASE |
+| Stock reduction | SALE |
 
-Movement records include:
+The database model also defines `RETURN`, `ADJUSTMENT`, and `DAMAGE` as supported movement types, but their corresponding workflows are not yet implemented.
 
-- movement_type
-- quantity
-- old_quantity
-- updated_quantity
-- difference_quantity
-- remarks
-- timestamps
+Movement records contain:
 
-Example:
-
-| Action | Old | Change | New |
-|------|----:|-------:|----:|
-| Initial Stock | 0 | +100 |100|
-| Purchase |100|+20|120|
-| Sale |120|-5|115|
-| Adjustment |115|-10|105|
-
----
-
-# Multi-Tenant Design
-
-Every protected query is scoped by `tenant_id`, ensuring organizations cannot access one another's data.
-
----
-
-# Validation
-
-Incoming requests are validated using Joi before reaching business logic.
-
-Separate validation schemas are used for create/update operations where appropriate.
-
----
-
-# Transactions
-
-Operations that affect multiple tables execute inside Sequelize transactions to guarantee consistency.
+- `movement_type`
+- `quantity`
+- `old_quantity`
+- `updated_quantity`
+- `difference_quantity`
+- `remarks`
+- Timestamps
 
 Example:
 
-1. Update inventory
-2. Record movement
-3. Commit
+| Operation | Previous | Change | Result |
+|---|---:|---:|---:|
+| Initial stock | 0 | +100 | 100 |
+| Purchase | 100 | +20 | 120 |
+| Sale | 120 | -5 | 115 |
 
-If any step fails, the transaction is rolled back.
+Metadata-only item updates do not create stock movement records.
 
----
+## Multi-Tenant Design
 
-# Tech Stack
+Inventory operations use the authenticated user's `tenant_id` to scope database queries.
+
+This ensures that inventory records belonging to one tenant are not returned through another tenant's inventory queries.
+
+## Authentication
+
+Koshvia uses JSON Web Tokens (JWT) for authentication.
+
+Protected inventory routes require a valid token in the HTTP Authorization header:
+
+```http
+Authorization: Bearer <your-jwt-token>
+```
+
+Authentication and role-based authorization are separate concerns. Role-based access control is not currently implemented.
+
+## Request Validation
+
+Joi is used to validate incoming inventory requests.
+
+Validation covers:
+
+- Required item fields
+- Item name and SKU constraints
+- Quantity constraints
+- Price constraints
+- Stock operation quantities
+- Update payload validation
+- Image URL validation
+
+## Transaction Management and Concurrency
+
+Stock operations use Sequelize database transactions.
+
+For stock addition and reduction:
+
+1. Begin a database transaction.
+2. Retrieve the inventory item within the tenant.
+3. Acquire a row-level update lock.
+4. Validate the stock operation.
+5. Update the inventory quantity.
+6. Record the corresponding inventory movement.
+7. Commit the transaction.
+
+If an operation fails, the transaction is rolled back.
+
+This keeps the inventory quantity and its corresponding movement record consistent.
+
+## Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| Node.js | JavaScript runtime |
+| Express.js | REST API framework |
+| PostgreSQL | Relational database |
+| Sequelize | ORM |
+| JWT | Authentication |
+| bcrypt | Password hashing |
+| Joi | Request validation |
+
+## API Reference
+
+Base URL:
+
+```text
+/api/v1/inventory
+```
+
+All inventory endpoints require JWT authentication.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Retrieve inventory |
+| POST | `/` | Create inventory item |
+| GET | `/:id` | Retrieve an inventory item |
+| PATCH | `/:id` | Update inventory item details |
+| PATCH | `/items/:id/add-stock` | Add stock |
+| PATCH | `/items/:id/remove-stock` | Remove stock |
+| GET | `/history` | Retrieve inventory movement history |
+| GET | `/history/:id` | Retrieve movement history for an item |
+
+General movement history supports pagination through query parameters:
+
+```text
+GET /api/v1/inventory/history?page=1&limit=10
+```
+
+## Running Locally
+
+### Prerequisites
 
 - Node.js
-- Express.js
-- Sequelize ORM
+- npm
 - PostgreSQL
-- JWT
-- bcrypt
-- Joi
 
----
+### 1. Clone the repository
 
-# Current Inventory API
+```bash
+git clone https://github.com/DPICODER/Koshvia.git
+cd Koshvia
+```
 
-| Method | Endpoint |
-|---|---|
-| POST | /inventory/items |
-| GET | /inventory/items |
-| GET | /inventory/items/:id |
-| PATCH | /inventory/items/:id |
-| PATCH | /inventory/items/:id/add-stock |
-| PATCH | /inventory/items/:id/remove-stock |
-| GET | /inventory/history |
-| GET | /inventory/history/:id |
-
----
-
-# Running Locally
-
-## Install
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-## Configure
+### 3. Configure environment variables
 
-Create a `.env`
+Create a `.env` file in the project root:
 
 ```env
-PORT=3000
-DB_HOST=
-DB_PORT=
-DB_NAME=
-DB_USER=
-DB_PASS=
-DB_DIALECT=postgres
+APP_PORT=3000
 
-JWT_SECRET=
+DB_HOST=localhost
+DB_NAME=koshvia_dev
+DB_USER=your_postgres_user
+DB_PASS=your_postgres_password
+
+JWT_SECRET=your_secret_key
 JWT_EXPIRES_IN=1d
 ```
 
-## Migrate
+Create the PostgreSQL database and configure a user with the required database permissions before running migrations.
+
+### 4. Run database migrations
 
 ```bash
 npm run db:migrate
 ```
 
-## Start
+### 5. Start the development server
 
 ```bash
 npm run dev
 ```
 
----
+The API will be available at:
 
-# Roadmap
+```text
+http://localhost:3000
+```
 
-## Inventory
+## Roadmap
+
+### Inventory
 
 - Duplicate SKU validation
-- Soft delete
-- Search
-- Filters
+- Soft deletion
+- Search and filtering
 - Sorting
-- Dashboard statistics
+- Pagination for individual item history
+- Dashboard-oriented inventory statistics
+- Return, adjustment, and damage workflows
 
-## Authentication
+### Authentication and Authorization
 
 - Refresh tokens
-- Logout
+- Logout and token invalidation
 - Password reset
 - Email verification
+- Role-based access control
 
-## Core
+### Core Engineering
 
-- AppError hierarchy
+- Consistent application error hierarchy
 - Rate limiting
-- Swagger/OpenAPI
-- Unit tests
+- Swagger / OpenAPI documentation
+- Automated unit and integration tests
 - Structured logging
+- Improved API response consistency
 
----
+## Engineering Decisions
 
-# Engineering Decisions
+Koshvia separates HTTP request handling from business logic through a modular controller-service architecture.
 
-This project intentionally separates HTTP concerns from business logic by placing all business rules inside services.
+Inventory stock changes are tracked through movement records rather than silently modifying quantities.
 
-Inventory changes are recorded through an audit trail instead of directly modifying stock without history.
+Database transactions ensure that stock updates and their associated movement records succeed or fail together.
 
-Transactions ensure inventory updates and movement logs succeed or fail together.
+Row-level locking is used during stock adjustments to protect against conflicting concurrent modifications.
 
----
+Tenant identifiers are included in inventory queries to enforce tenant-level data isolation.
 
-# Status
+## Project Status
 
-Koshvia is actively under development and is being expanded feature by feature while maintaining clean architecture and production-inspired backend practices.
+Koshvia is an actively developed backend engineering project.
+
+The current focus is improving API reliability, database consistency, validation, automated testing, and maintainability before expanding functionality.
