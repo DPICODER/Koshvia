@@ -5,7 +5,7 @@ const inventoryItems = require('./inventory.item.model');
 const inventoryMovemnet = require('./inventory.movement.model');
 /**
  * gets all inventory items of logged in user/comany
- * @param {UUID} user_id 
+ * @param {UUID} user_id
  * @returns {Promise.object}
  */
 exports.getUserInventory = async (user_id) => {
@@ -13,15 +13,15 @@ exports.getUserInventory = async (user_id) => {
 }
 
 /**
- * 
- * @param {UUID} tenant_id 
- * @param {Object} item_info 
- * @param {Object} options 
+ *
+ * @param {UUID} tenant_id
+ * @param {Object} item_info
+ * @param {Object} options
  * @returns {Promise.Object}
  */
 exports.createInventoryItem = async (tenant_id, item_info, options = {}) => {
     try {
-        
+
         const item = await inventoryItems.create({
             tenant_id: tenant_id,
             item_name: item_info.item_name,
@@ -64,40 +64,38 @@ exports.getInventoryItemById = async (item_id, tenant_id) => {
 
 exports.updateInventoryItem = async (tenant_id, item_id, update_info, options = {}) => {
     try {
-        const item = await exports.getInventoryItemById(item_id, tenant_id);
+        const item = await inventoryItems.findOne({
+            where:{
+                id:item_id,
+                tenant_id:tenant_id
+            },
+            transaction:options.transaction
+        })
         if (!item) {
             throw new AppError("Inventory item not found",404);
         }
-        const old_item = item.toJSON();
+
+        const nextCostPrice = Number(update_info.cost_price ?? item.cost_price);
+        const nextSellingPrice = Number(update_info.selling_price ?? item.selling_price);
+
+        if(
+            !Number.isFinite(nextCostPrice) ||
+            !Number.isFinite(nextSellingPrice)||
+            nextSellingPrice < nextCostPrice
+        ){
+            throw new AppError("Invalid Pricing : Selling price cannot be less than cost price",400);
+        }
+
         const update_details = await item.update({
             item_name: update_info.item_name ?? item.item_name,
             sku: update_info.sku ?? item.sku,
-            quantity: update_info.quantity ?? item.quantity,
             cost_price: update_info.cost_price ?? item.cost_price,
             selling_price: update_info.selling_price ?? item.selling_price,
             minimum_stock: update_info.minimum_stock ?? item.minimum_stock,
             image_url: update_info.image_url ?? item.image_url
         }, options)
 
-        return { old_item, update_details };
-    } catch (error) {
-        console.error(error);
-        throw error
-    }
-}
-
-exports.updateInventoryMovement = async (old_entry, new_entry, update_info, options = {}) => {
-    try {
-        await inventoryMovemnet.create({
-            tenant_id: new_entry.tenant_id,
-            item_id: new_entry.id,
-            movement_type: MOVEMENT_TYPES.ADJUSTMENT,
-            quantity: Math.abs(new_entry.quantity - old_entry.quantity),
-            remarks: `Admin updated: ${Object.keys(update_info).join(', ')}`,
-            old_quantity: old_entry.quantity,
-            updated_quantity: new_entry.quantity,
-            difference_quantity: new_entry.quantity - old_entry.quantity,
-        }, options)
+        return {update_details };
     } catch (error) {
         console.error(error);
         throw error
@@ -125,21 +123,47 @@ exports.getInventoryHistoryById = async (tenant_id, item_id) => {
 
 exports.adjustStock = async (tenant_id, item_id, quantity, operation, options = {}) => {
     try {
-        const item = await exports.getInventoryItemById(item_id, tenant_id);
-        
+        const transaction = options.transaction;
+
+        if(!transaction){
+            throw new Error("adjustStock requires an active transaction");
+        }
+
+        if(
+            operation !== STOCK_OPERATION.INCREMENT &&
+            operation !== STOCK_OPERATION.DECREMENT
+        ){
+            throw new AppError("Invalid stock operation",400);
+        }
+
+        if(!Number.isInteger(quantity) || quantity <=0){
+            throw new AppError("Quantity must be a positive integer",400);
+        }
+
+        const item = await inventoryItems.findOne({
+            where:{
+                id:item_id,
+                tenant_id:tenant_id
+            },
+            transaction,
+            lock:transaction.LOCK.UPDATE
+        });
+
         if (!item) {
             throw new AppError("Inventory item not found",404)
         }
 
         const old_quantity = item.quantity;
+
         if(operation === STOCK_OPERATION.DECREMENT && item.quantity < quantity){
-             throw new AppError("Insufficent Stock",400);
+             throw new AppError("Insufficient Stock",400);
         }
+
         await item[operation]("quantity", {
             by: quantity,
-            ...options
+            transaction
         })
-        await item.reload({ transaction: options.transaction });
+        await item.reload({transaction});
 
         const stockChange = {
             old_quantity:old_quantity,
@@ -150,7 +174,9 @@ exports.adjustStock = async (tenant_id, item_id, quantity, operation, options = 
         return {
             item,
             stockChange,
-            operation:operation === STOCK_OPERATION.INCREMENT ? MOVEMENT_TYPES.PURCHASE : MOVEMENT_TYPES.SALE
+            operation:operation === STOCK_OPERATION.INCREMENT
+                ? MOVEMENT_TYPES.PURCHASE
+                : MOVEMENT_TYPES.SALE
         };
     }
     catch (error) {

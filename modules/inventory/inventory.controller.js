@@ -20,7 +20,7 @@ exports.getInventory = async (req, res, next) => {
     } catch (error) {
         next(error)
     }
-}
+};
 
 exports.addToInventory = async (req, res, next) => {
     if (req.body.selling_price < req.body.cost_price) {
@@ -49,23 +49,29 @@ exports.addToInventory = async (req, res, next) => {
         }
         next(error)
     }
-}
+};
 
+// Edit item metadata:name,SKU,prices,minimum stock,image
 exports.updateEntry = async (req, res, next) => {
     let t;
+
     try {
         t = await sequelize.transaction();
-        
+
         const tenant_id = req.user.tenant_id;
         const update_info = req.body;
         const item_id = req.params.id;
 
-
-        const update_item = await inventoryService.updateInventoryItem(tenant_id, item_id, update_info, { transaction: t });
-        await inventoryService.updateInventoryMovement(update_item.old_item, update_item.update_details, update_info, { transaction: t });
+        await inventoryService.updateInventoryItem(
+            tenant_id,
+            item_id,
+            update_info,
+            { transaction: t }
+        );
 
         await t.commit();
-        return res.status(201).json({
+
+        return res.status(200).json({
             success: true,
             message: "Inventory Updated",
         })
@@ -75,7 +81,7 @@ exports.updateEntry = async (req, res, next) => {
         }
         next(error)
     }
-}
+};
 
 exports.getInventoryItem = async (req, res, next) => {
     try {
@@ -95,7 +101,7 @@ exports.getInventoryItem = async (req, res, next) => {
     } catch (error) {
         next(error)
     }
-}
+};
 
 
 exports.getInvnetoryMovement = async (req, res, next) => {
@@ -121,7 +127,7 @@ exports.getInvnetoryMovement = async (req, res, next) => {
     } catch (error) {
         next(error)
     }
-}
+};
 
 exports.getInvnetoryMovementById = async (req, res, next) => {
     try {
@@ -143,13 +149,13 @@ exports.getInvnetoryMovementById = async (req, res, next) => {
     } catch (error) {
         next(error)
     }
-}
+};
 
 exports.addStock = async (req, res, next) => {
     let t;
     try {
         t = await sequelize.transaction();
-        
+
         const tenant_id = req.user.tenant_id;
         const quantity = req.body.quantity;
         const item_id = req.params.id;
@@ -163,15 +169,18 @@ exports.addStock = async (req, res, next) => {
             data: result
         });
     } catch (error) {
-        if(t && t.finished){
+        if(t && !t.finished){
             await t.rollback();
         }
         next(error)
     }
-}
+};
+
 exports.reduceStock = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    let t;
     try {
+        t = await sequelize.transaction();
+
         const tenant_id = req.user.tenant_id;
         const quantity = req.body.quantity;
         const item_id = req.params.id;
@@ -185,7 +194,9 @@ exports.reduceStock = async (req, res, next) => {
             data: result
         });
     } catch (error) {
-        await t.rollback();
-        next(error)
+        if(t && !t.finished){
+            await t.rollback();
+        }
+        next(error);
     }
-}
+};

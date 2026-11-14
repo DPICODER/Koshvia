@@ -19,4 +19,13 @@ const validateReduceStock = joi.object({
     quantity:joi.number().integer().positive().required()
 })
 
-module.exports = {validateInventoryCreate,validateAddStock,validateReduceStock};
+const validateInventoryUpdate = joi.object({
+    item_name:joi.string().trim().min(1).max(255),
+    sku:joi.string().trim().max(100).allow(null,""),
+    cost_price:joi.number().min(0),
+    selling_price:joi.number().min(0),
+    minimum_stock: joi.number().integer().min(0),
+    image_url:joi.string().uri().allow(null,"")
+}).min(1).unknown(false);
+
+module.exports = {validateInventoryCreate,validateAddStock,validateReduceStock,validateInventoryUpdate};
